@@ -43,6 +43,7 @@ enum
 
 // Macros
 #define ARRAY_SIZE(a)           (sizeof((a)) / sizeof(*(a)))
+//#define PAT_SHOW_FILES
 
 
 // Rounds a number up by the specified amount.
@@ -50,66 +51,69 @@ enum
 
 
 // Local data
-static HANDLE   hConsole    = INVALID_HANDLE_VALUE;
-static bool     lowerCase   = false;
-static bool     upperCase   = false;
-static bool     gotInput    = false;
-static bool     gotOutput   = false;
-static bool     verbose     = false;
-static bool     crushData   = false;
+namespace
+{
+    HANDLE   hConsole    = INVALID_HANDLE_VALUE;
+    bool     lowerCase   = false;
+    bool     upperCase   = false;
+    bool     gotInput    = false;
+    bool     gotOutput   = false;
+    bool     verbose     = false;
+    bool     crushData   = false;
 
+    _TCHAR   inputDirectory      [MAX_PATH];
+    _TCHAR   outputFilename      [MAX_PATH];
+    _TCHAR   inputDirectory_Full [MAX_PATH];
+    _TCHAR   outputFilename_Full [MAX_PATH];
+    _TCHAR   outputFilename_Fat  [MAX_PATH];
+    _TCHAR   outputFilename_Arc  [MAX_PATH];
 
-static _TCHAR   inputDirectory      [MAX_PATH];
-static _TCHAR   outputFilename      [MAX_PATH];
-static _TCHAR   inputDirectory_Full [MAX_PATH];
-static _TCHAR   outputFilename_Full [MAX_PATH];
-static _TCHAR   outputFilename_Fat  [MAX_PATH];
-static _TCHAR   outputFilename_Arc  [MAX_PATH];
-
-
-static std::list<ArcEntry>  filesToAdd;
+    std::list<ArcEntry>  filesToAdd;
+}
 
 
 // Local functions
-static void UnknownCommand(const _TCHAR* argv);
-static bool GetArgument(const _TCHAR** argv, int index, int total, _TCHAR *data);
-static bool CheckArguments();
-static bool ValidateDirectory(const _TCHAR *filename);
-static bool FileExist(const _TCHAR *filename);
-static bool ValidateFile(const _TCHAR *filename);
-static bool ValidateNotDirectory(const _TCHAR *filename);
-static void ScanDirectory(const _TCHAR *filename);
-static void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory);
-static void DebugShowLastError();
-static void CreateEntry(WIN32_FIND_DATAW &fd, const _TCHAR *filename);
-static bool WriteArchive();
-static u32  StringHash(const char* string);
-static int  CompressData(const Bytef *data, uLong dataSize, uLong &dataOutSize, u8 **dataOut);
-static void StringReplaceChar(char *string, char search, char replace);
+void UnknownCommand(const _TCHAR* argv);
+bool GetArgument(const _TCHAR** argv, int index, int total, _TCHAR *data);
+bool CheckArguments();
+bool ValidateDirectory(const _TCHAR *filename);
+bool FileExist(const _TCHAR *filename);
+bool ValidateFile(const _TCHAR *filename);
+bool ValidateNotDirectory(const _TCHAR *filename);
+void ScanDirectory(const _TCHAR *filename);
+void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory);
+void DebugShowLastError();
+void CreateEntry(WIN32_FIND_DATAW &fd, const _TCHAR *filename);
+bool WriteArchive();
+u32  StringHash(const char* string);
+int  CompressData(const Bytef *data, uLong dataSize, uLong &dataOutSize, u8 **dataOut);
+void StringReplaceChar(char *string, char search, char replace);
 
 
+// ----------------------------------------------------------------------------
 // Cleans up.
-//
-static void fnExit(void)
+// ----------------------------------------------------------------------------
+void fnExit(void)
 {
-    std::list<ArcEntry>::iterator it  = filesToAdd.begin();
-    std::list<ArcEntry>::iterator end = filesToAdd.end();
-
-    /*if (verbose && filesToAdd.size() > 0)
+#ifdef PAT_SHOW_FILES
+    if (verbose)
     {
-        printf("-------------------------------------------------------------------------------\n");
-        printf("Files in archive\n");
-        printf("-------------------------------------------------------------------------------\n");
-    }
-
-    for(;it != end; ++it)
-    {
-        // Display entries on exit.
-        if (verbose)
+        if (filesToAdd.size() > 0)
         {
-            printf("Size: %*i : %s\n", 10, (*it).filesize, (*it).filename);
+            printf("-------------------------------------------------------------------------------\n");
+            printf("Files in archive\n");
+            printf("-------------------------------------------------------------------------------\n");
+
+            std::list<ArcEntry>::iterator it  = filesToAdd.begin();
+            std::list<ArcEntry>::iterator end = filesToAdd.end();
+            for(;it != end; ++it)
+            {
+                // Display entries on exit.
+                printf("Size: %*i : %s\n", 10, (*it).filesize, (*it).filename);
+            }
         }
-    }//*/
+    }
+#endif
 
     filesToAdd.clear();
 }
@@ -157,7 +161,6 @@ int _tmain(int argc, _TCHAR* argv[])
             {
             // Show version?
             case L'v':
-            case L'V':
                 if (_tcsicmp(L"-v", argv[i]) == 0)
                 {
                     ShowVersion();
@@ -177,7 +180,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
             // Show help?
             case L'h':
-            case L'H':
                 if (_tcsicmp(L"-h", argv[i]) == 0)
                 {
                     ShowUsage();
@@ -193,7 +195,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
             // Lower case file names.
             case L'l':
-            case L'L':
                 if (_tcsicmp(L"-lc", argv[i]) == 0)
                 {
                     lowerCase = true;
@@ -208,7 +209,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
             // Upper case file names.
             case L'u':
-            case L'U':
                 if (_tcsicmp(L"-uc", argv[i]) == 0)
                 {
                     upperCase = true;
@@ -221,9 +221,8 @@ int _tmain(int argc, _TCHAR* argv[])
                 break;
 
 
-            // Upper case file names.
+            // Compress?
             case L'c':
-            case L'C':
                 if (_tcsicmp(L"-c", argv[i]) == 0)
                 {
                     crushData = true;
@@ -238,7 +237,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
             // Input directory
             case L'i':
-            case L'I':
                 if (_tcsicmp(L"-i", argv[i]) == 0)
                 {
                     if (GetArgument((const _TCHAR **)argv, i, count, inputDirectory) == false)
@@ -263,7 +261,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
             // Output filename
             case L'o':
-            case L'O':
                 if (_tcsicmp(L"-o", argv[i]) == 0)
                 {
                     if (GetArgument((const _TCHAR **)argv, i, count, outputFilename) == false)
@@ -391,7 +388,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 // Unknown command handler.
 //
-static void UnknownCommand(const _TCHAR* argv)
+void UnknownCommand(const _TCHAR* argv)
 {
     printf("Unknown command line parameter: %ls\n", argv);
 }
@@ -404,7 +401,7 @@ static void UnknownCommand(const _TCHAR* argv)
 // total == The total number of argument values
 // data  == The storage string
 //
-static bool GetArgument(const _TCHAR** argv, int index, int total, _TCHAR *data)
+bool GetArgument(const _TCHAR** argv, int index, int total, _TCHAR *data)
 {
     // Do we have enough command line arguments?
     if (index + 1 > total)
@@ -440,7 +437,7 @@ static bool GetArgument(const _TCHAR** argv, int index, int total, _TCHAR *data)
 
 // Check the arguments
 //
-static bool CheckArguments()
+bool CheckArguments()
 {
     if (lowerCase && upperCase)
     {
@@ -468,7 +465,7 @@ static bool CheckArguments()
 
 // Validates that we can use the directory.
 //
-static bool ValidateDirectory(const _TCHAR *filename)
+bool ValidateDirectory(const _TCHAR *filename)
 {
     // Get attributes.
     DWORD attribs = GetFileAttributes(filename);
@@ -493,7 +490,7 @@ static bool ValidateDirectory(const _TCHAR *filename)
 
 // Determines if the passed file exists.
 //
-static bool FileExist(const _TCHAR *filename)
+bool FileExist(const _TCHAR *filename)
 {
     if (filename && *filename)
     {
@@ -512,7 +509,7 @@ static bool FileExist(const _TCHAR *filename)
 
 // Validates that we can use the file
 //
-static bool ValidateFile(const _TCHAR *filename)
+bool ValidateFile(const _TCHAR *filename)
 {
     static const DWORD flags[] =
     {
@@ -532,7 +529,7 @@ static bool ValidateFile(const _TCHAR *filename)
         DWORD attribs = GetFileAttributes(filename);
         if (attribs == 0xffffffff)
         {
-            printf("Failed to acquire file attributes for:\n'%s'\n", filename);
+            printf("Failed to acquire file attributes for:\n'%ls'\n", filename);            
             return false;
         }
 
@@ -578,7 +575,7 @@ static bool ValidateFile(const _TCHAR *filename)
 
 // Validates that we can use the file
 //
-static bool ValidateNotDirectory(const _TCHAR *filename)
+bool ValidateNotDirectory(const _TCHAR *filename)
 {
     // Does the file exist?
     DWORD attribs = GetFileAttributes(filename);
@@ -602,7 +599,7 @@ static bool ValidateNotDirectory(const _TCHAR *filename)
 
 // Scans the directory.
 //
-static void ScanDirectory(const _TCHAR *filename)
+void ScanDirectory(const _TCHAR *filename)
 {
     // Create search path and base path.
     _TCHAR  filenameParent  [MAX_PATH];
@@ -653,7 +650,7 @@ static void ScanDirectory(const _TCHAR *filename)
 
 // Checks for a file we can use.
 //
-static void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory)
+void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory)
 {
     static const DWORD flags[] =
     {
@@ -731,7 +728,7 @@ static void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory)
 
 // Displays the last windows error message.
 //
-static void DebugShowLastError()
+void DebugShowLastError()
 {
     DWORD dw = GetLastError(); 
     if (dw != 0)
@@ -752,7 +749,7 @@ static void DebugShowLastError()
         );
 
         printf("============================================================\n");
-        printf("Last error: %ls", lpMsgBuf);
+        printf("Last error: %s", (char *)lpMsgBuf);
         printf("============================================================\n");
 
         if (lpMsgBuf)
@@ -765,7 +762,7 @@ static void DebugShowLastError()
 
 // Turns a string into a number.
 //
-static u32 StringHash(const char* string)
+u32 StringHash(const char* string)
 {
     u32 hash = 0;
 
@@ -817,7 +814,7 @@ void CreateEntry(WIN32_FIND_DATAW &fd, const _TCHAR *filename)
 
 // Create the fat
 //
-static bool WriteArchive()
+bool WriteArchive()
 {
     // Create the header
     FatHeader   header;
@@ -890,23 +887,13 @@ static bool WriteArchive()
 
         // Sort for faster searching.
         entries.sort();
-        
-
-        /*{
-            std::list<ArcEntry>::iterator it1  = entries.begin();
-            std::list<ArcEntry>::iterator end1 = entries.end();
-            for(;it1 != end1; ++it1)
-            {
-                printf("Hash %08x : %s\n", (*it1).hash, (*it1).filename);
-            }
-        }//*/
 
 
         if (verbose)
         {
             printf("-------------------------------------------------------------------------------\n");
-            printf("    Offset Compressed     Actual\n");
-            printf("in archive       size   Filesize : File\n");
+            printf("    Offset Compressed     Actual       Hash\n");
+            printf("in archive       size   Filesize     Number : File\n");
             printf("-------------------------------------------------------------------------------\n");
         }
 
@@ -1058,8 +1045,13 @@ static bool WriteArchive()
 
                         if (verbose)
                         {
-//                            printf("Offset    C/size   F/size     : File\n");
-                            printf("%*i %*i %*i : %s\n", 10, entry.offset, 10, entry.compressedSize, 10, entry.filesize, entry.filename);
+                           //printf("    Offset Compressed     Actual\n");
+                           //printf("in archive       size   Filesize : File\n");
+                           printf("%*i %*i %*i %*x : %s\n", 10, entry.offset,
+                                                            10, entry.compressedSize,
+                                                            10, entry.filesize,
+                                                            10, entry.hash,
+                                                            entry.filename);
                         }
                     }
                 }
@@ -1070,16 +1062,6 @@ static bool WriteArchive()
                 }
             }
         }
-
-
-/*        {
-            std::list<ArcEntry>::iterator it1  = entries.begin();
-            std::list<ArcEntry>::iterator end1 = entries.end();
-            for(;it1 != end1; ++it1)
-            {
-                printf("%i %i %i : %s\n", (*it1).offset, (*it1).compressedSize, (*it1).filesize, (*it1).filename);
-            }
-        }//*/
 
 Error:
         fclose(fp_fat);
@@ -1104,7 +1086,7 @@ Error:
 
 // Compress file data.
 //
-static int CompressData(const Bytef *data, uLong dataSize, uLong &dataOutSize, u8 **dataOut)
+int CompressData(const Bytef *data, uLong dataSize, uLong &dataOutSize, u8 **dataOut)
 {
     if (dataOut == NULL)
         return COMPRESS_FAILED;
@@ -1161,7 +1143,7 @@ static int CompressData(const Bytef *data, uLong dataSize, uLong &dataOutSize, u
 
 // Changes every occurrence of the search character with the replace character.
 //
-static void StringReplaceChar(char *string, char search, char replace)
+void StringReplaceChar(char *string, char search, char replace)
 {
     if (string && *string)
     {
