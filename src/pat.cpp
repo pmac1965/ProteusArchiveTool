@@ -44,6 +44,12 @@ enum
 // Macros
 #define ARRAY_SIZE(a)           (sizeof((a)) / sizeof(*(a)))
 //#define PAT_SHOW_FILES
+//#define EXAMPLE_CODE
+
+
+#ifdef EXAMPLE_CODE
+void Find();
+#endif
 
 
 // Rounds a number up by the specified amount.
@@ -381,6 +387,10 @@ int _tmain(int argc, _TCHAR* argv[])
     if (!WriteArchive())
         return 1;
 
+    // Test example code
+#ifdef EXAMPLE_CODE
+    Find();
+#endif
 
 	return 0;
 }
@@ -760,8 +770,9 @@ void DebugShowLastError()
 }
 
 
+// ----------------------------------------------------------------------------
 // Turns a string into a number.
-//
+// ----------------------------------------------------------------------------
 u32 StringHash(const char* string)
 {
     u32 hash = 0;
@@ -1156,3 +1167,97 @@ void StringReplaceChar(char *string, char search, char replace)
         }
     }
 }
+
+
+#ifdef EXAMPLE_CODE
+ArcEntry * Locate(u32 hash, u32 entryCount, ArcEntry *pEntries);
+
+// ------------------------------------------------------------------------
+// Looks for some test files
+// ------------------------------------------------------------------------
+void Find()
+{
+    FILE *fp = fopen("arc_00.fat", "rb");
+    if (fp)
+    {
+        // Get file size
+        fseek(fp, 0, SEEK_END);
+        s32 filesize = (s32)ftell(fp);
+        rewind(fp);       
+
+        // Read data
+        u8 *buffer = (u8*)malloc(filesize);
+        fread(buffer, 1, filesize, fp);                        
+        fclose(fp);
+
+        // Point to data
+        FatHeader *pHeader     = (FatHeader*)(buffer);
+        ArcEntry  *pArcEntries = (ArcEntry*)(buffer + sizeof(FatHeader));
+
+        u32 count = pHeader->entries;
+        printf("Entries: %i\n", count);
+
+        ArcEntry *pEntry1 = Locate(StringHash("abc/a.txt"), count, pArcEntries);
+        ArcEntry *pEntry2 = Locate(StringHash("textures/dialog.png"), count, pArcEntries);
+        ArcEntry *pEntry3 = Locate(StringHash("textures/logo.png"), count, pArcEntries);
+
+        if (pEntry1)
+        {
+            printf("Found '%s'\n", pEntry1->filename);
+        }
+        if (pEntry2)
+        {
+            printf("Found '%s'\n", pEntry2->filename);
+        }
+        if (pEntry3)
+        {
+            printf("Found '%s'\n", pEntry3->filename);
+        }
+
+        free(buffer);
+    }
+}
+
+
+// ------------------------------------------------------------------------
+// This function looks in an archive for a file.
+// ------------------------------------------------------------------------
+ArcEntry *Locate(u32 hash, u32 entryCount, ArcEntry *pEntries)
+{
+    ArcEntry *result = nullptr;
+
+    for (u32 i=0; i<entryCount; i++)
+    {
+        s32  lower = 0;
+        s32  upper = entryCount;
+
+        // Get table start
+        ArcEntry *pStart = pEntries;
+
+        while(lower <= upper)
+        {
+            s32 mid = (lower + upper) / 2;
+
+            // Get mid entry
+            ArcEntry *pEntry = pStart;
+            pEntry += mid;
+
+            if (hash > pEntry->hash)
+            {
+                lower = mid + 1;
+            }
+            else if (hash < pEntry->hash)
+            {
+                upper = mid - 1;
+            }
+            else
+            {
+                result = pEntry;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+#endif

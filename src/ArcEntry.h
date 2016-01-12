@@ -19,31 +19,31 @@
 
 
 // Basic types
-typedef   signed char       s8;
-typedef unsigned char       u8;
-typedef   signed short      s16;
-typedef unsigned short      u16;
-typedef   signed int        s32;
-typedef unsigned int        u32;
-typedef   signed __int64    s64;
-typedef unsigned __int64    u64;
-typedef float               f32;
-typedef double              f64;
+typedef   signed char       s8;             // Signed 8 bit
+typedef unsigned char       u8;             // Unsigned 8 bit
+typedef   signed short      s16;            // Signed 16 bit
+typedef unsigned short      u16;            // Unsigned 16 bit
+typedef   signed int        s32;            // Signed 32 bit
+typedef unsigned int        u32;            // Unsigned 32 bit
+typedef   signed __int64    s64;            // Signed 64 bit
+typedef unsigned __int64    u64;            // Unsigned 64 bit
+typedef float               f32;            // 32 bit float
+typedef double              f64;            // 64 bit float
 
 
 enum
 {
-    COMPRESSION_TYPE_NONE,
-    COMPRESSION_TYPE_ZLIB,      // Using zlib?
+    COMPRESSION_TYPE_NONE,                  // Not compressed
+    COMPRESSION_TYPE_ZLIB,                  // Using zlib?
 };
 
 
 typedef struct FatHeader
 {
-    u32 entries;
-    u32 size;
-    u32 magic1;
-    u32 magic2;
+    u32 entries;                            // The number of archive entries
+    u32 size;                               // The size of the binary file (Including header)
+    u32 magic1;                             // File identifier
+    u32 magic2;                             // File identifier
 
 } FatHeader;
 
@@ -56,18 +56,18 @@ typedef struct FatHeader
 #define MAGIC1              MAKE4('p', 'r', 'o', 't')
 #define MAGIC2              MAKE4('a', 'r', 'c', 'h')
 
-
+// Each archive entry is store as this block of data
 typedef struct ArcEntry
 {
-    u32     hash;
-    u32     offset;
-    u32     filesize;
-    u32     compressedSize;
-    u8      compressed;
-    u8      compressionType;
-    u8      exp0;
-    u8      exp1;
-    char    filename[260];
+    u32     hash;                           // The hashed filename of the entry
+    u32     offset;                         // Offset into the archive
+    u32     filesize;                       // The uncompressed filesize of the entry
+    u32     compressedSize;                 // The compressed filesize of the entry
+    u8      compressed;                     // 0 == uncompressed 1 == compressed
+    u8      compressionType;                // COMPRESSION_TYPE_NONE or COMPRESSION_TYPE_ZLIB
+    u8      exp0;                           // Expansion purposes (Free to use)
+    u8      exp1;                           // Expansion purposes (Free to use)
+    char    filename[260];                  // The filename
 
 
     bool operator < (const ArcEntry& rhs)
