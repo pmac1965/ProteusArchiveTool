@@ -136,9 +136,8 @@ int _tmain(int argc, _TCHAR* argv[])
     _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
     #endif
 
-
+    // Set cleanup
     atexit(fnExit);
-
 
     // Get console
     hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -147,14 +146,12 @@ int _tmain(int argc, _TCHAR* argv[])
         SetConsoleTitle(TEXT("Proteus Archive Tool"));
     }
 
-
     // No args?
     if (argc == 1)
     {
         ShowUsage();
         return 1;
     }
-
 
     // Parse args
     int count = argc - 1;
@@ -183,7 +180,6 @@ int _tmain(int argc, _TCHAR* argv[])
                 }
                 break;
 
-
             // Show help?
             case L'h':
                 if (_tcsicmp(L"-h", argv[i]) == 0)
@@ -198,7 +194,6 @@ int _tmain(int argc, _TCHAR* argv[])
                 }
                 break;
 
-
             // Lower case file names.
             case L'l':
                 if (_tcsicmp(L"-lc", argv[i]) == 0)
@@ -211,7 +206,6 @@ int _tmain(int argc, _TCHAR* argv[])
                     return 1;
                 }
                 break;
-
 
             // Upper case file names.
             case L'u':
@@ -226,7 +220,6 @@ int _tmain(int argc, _TCHAR* argv[])
                 }
                 break;
 
-
             // Compress?
             case L'c':
                 if (_tcsicmp(L"-c", argv[i]) == 0)
@@ -239,7 +232,6 @@ int _tmain(int argc, _TCHAR* argv[])
                     return 1;
                 }
                 break;
-
 
             // Input directory
             case L'i':
@@ -264,7 +256,6 @@ int _tmain(int argc, _TCHAR* argv[])
                 }
                 break;
 
-
             // Output filename
             case L'o':
                 if (_tcsicmp(L"-o", argv[i]) == 0)
@@ -288,7 +279,6 @@ int _tmain(int argc, _TCHAR* argv[])
                 }
                 break;
 
-
             default:
                 UnknownCommand(argv[i]);
                 return 1;
@@ -301,14 +291,12 @@ int _tmain(int argc, _TCHAR* argv[])
         }
     }
 
-
     // Check arguments
     if (!CheckArguments())
     {
         return 1;
     }
-   
-    
+       
     // Get full paths
     if (GetFullPathName(outputFilename, MAX_PATH, outputFilename_Full, NULL) == 0)
     {
@@ -322,19 +310,15 @@ int _tmain(int argc, _TCHAR* argv[])
         return 1;
     }
 
-
-
     // Validate input/output sources.
     if (!ValidateDirectory(inputDirectory_Full))
     {
         return 1;
     }
 
-
     // Copy to make output filenames
     _tcscpy_s(outputFilename_Fat, MAX_PATH, outputFilename_Full);
     _tcscpy_s(outputFilename_Arc, MAX_PATH, outputFilename_Full);
-
 
     // Check output names are not directories
     if (!ValidateNotDirectory(outputFilename_Fat))
@@ -347,11 +331,9 @@ int _tmain(int argc, _TCHAR* argv[])
         return 1;
     }
 
-
     // Add extensions
     _tcscat_s(outputFilename_Fat, MAX_PATH, L".fat");
     _tcscat_s(outputFilename_Arc, MAX_PATH, L".arc");
-
 
     // Validate.
     if (!ValidateFile(outputFilename_Fat))
@@ -364,9 +346,8 @@ int _tmain(int argc, _TCHAR* argv[])
         return 1;
     }
 
-
+    // Scan
     ScanDirectory(inputDirectory_Full);
-
 
     // Got files to add?
     if (filesToAdd.size() == 0)
@@ -374,15 +355,6 @@ int _tmain(int argc, _TCHAR* argv[])
         printf("Didn't find any files to add to archive\n");
         return 1;
     }
-
-
-    // FAT
-    //if (verbose)
-    //{
-    //    printf("Creating %ls\n", outputFilename_Fat);
-    //    printf("Creating %ls\n", outputFilename_Arc);
-    //}
-    
 
     if (!WriteArchive())
         return 1;
@@ -396,21 +368,23 @@ int _tmain(int argc, _TCHAR* argv[])
 }
 
 
+// ------------------------------------------------------------------------
 // Unknown command handler.
-//
+// ------------------------------------------------------------------------
 void UnknownCommand(const _TCHAR* argv)
 {
     printf("Unknown command line parameter: %ls\n", argv);
 }
 
 
+// ------------------------------------------------------------------------
 // Gets the argument for a command
 //
 // argv  == The arguments array.
 // index == The current index into the argument values array
 // total == The total number of argument values
 // data  == The storage string
-//
+// ------------------------------------------------------------------------
 bool GetArgument(const _TCHAR** argv, int index, int total, _TCHAR *data)
 {
     // Do we have enough command line arguments?
@@ -420,7 +394,6 @@ bool GetArgument(const _TCHAR** argv, int index, int total, _TCHAR *data)
         return false;
     }
 
-
     // Is the argument empty?
     _TCHAR *pArg = (_TCHAR*)argv[index + 1];
     if (*pArg == L'\0')
@@ -428,7 +401,6 @@ bool GetArgument(const _TCHAR** argv, int index, int total, _TCHAR *data)
         printf("You can't have empty data for argument: %ls\n", argv[index]);
         return false;
     }
-
 
     // Is the argument too long?
     size_t size = _tcslen(pArg);
@@ -438,15 +410,15 @@ bool GetArgument(const _TCHAR** argv, int index, int total, _TCHAR *data)
         return false;
     }
 
-
     // Store the argument
     _tcscpy_s(data, MAX_PATH, pArg);
     return true;
 }
 
 
+// ------------------------------------------------------------------------
 // Check the arguments
-//
+// ------------------------------------------------------------------------
 bool CheckArguments()
 {
     if (lowerCase && upperCase)
@@ -455,13 +427,11 @@ bool CheckArguments()
         return false;
     }
 
-
     if (!gotInput)
     {
         printf("No input directory specified\n");
         return false;
     }
-
 
     if (!gotOutput)
     {
@@ -473,8 +443,9 @@ bool CheckArguments()
 }
 
 
+// ------------------------------------------------------------------------
 // Validates that we can use the directory.
-//
+// ------------------------------------------------------------------------
 bool ValidateDirectory(const _TCHAR *filename)
 {
     // Get attributes.
@@ -485,7 +456,6 @@ bool ValidateDirectory(const _TCHAR *filename)
         return false;
     }
 
-
     // Directory.
     if ((attribs & FILE_ATTRIBUTE_DIRECTORY) != FILE_ATTRIBUTE_DIRECTORY)
     {
@@ -493,13 +463,13 @@ bool ValidateDirectory(const _TCHAR *filename)
         return false;
     }
 
-
     return true;
 }
 
 
+// ------------------------------------------------------------------------
 // Determines if the passed file exists.
-//
+// ------------------------------------------------------------------------
 bool FileExist(const _TCHAR *filename)
 {
     if (filename && *filename)
@@ -517,8 +487,9 @@ bool FileExist(const _TCHAR *filename)
 }
 
 
+// ------------------------------------------------------------------------
 // Validates that we can use the file
-//
+// ------------------------------------------------------------------------
 bool ValidateFile(const _TCHAR *filename)
 {
     static const DWORD flags[] =
@@ -543,7 +514,6 @@ bool ValidateFile(const _TCHAR *filename)
             return false;
         }
 
-
         // Any unsuitable attributes?
         for (int i=0; i<ARRAY_SIZE(flags); i++)
         {
@@ -553,7 +523,6 @@ bool ValidateFile(const _TCHAR *filename)
                 return false;
             }
         }
-
 
         // Read only?
         if ((attribs & FILE_ATTRIBUTE_READONLY) == FILE_ATTRIBUTE_READONLY)
@@ -578,13 +547,13 @@ bool ValidateFile(const _TCHAR *filename)
         }
     }
 
-
     return true;
 }
 
 
+// ------------------------------------------------------------------------
 // Validates that we can use the file
-//
+// ------------------------------------------------------------------------
 bool ValidateNotDirectory(const _TCHAR *filename)
 {
     // Does the file exist?
@@ -594,7 +563,6 @@ bool ValidateNotDirectory(const _TCHAR *filename)
         return true;
     }
 
-
     // Directory?
     if ((attribs & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY)
     {
@@ -602,13 +570,13 @@ bool ValidateNotDirectory(const _TCHAR *filename)
         return false;
     }
 
-
     return true;
 }
 
 
+// ------------------------------------------------------------------------
 // Scans the directory.
-//
+// ------------------------------------------------------------------------
 void ScanDirectory(const _TCHAR *filename)
 {
     // Create search path and base path.
@@ -620,12 +588,8 @@ void ScanDirectory(const _TCHAR *filename)
     _tcscat_s(filenameDir,    MAX_PATH, L"\\*.*");
 
 
-    //printf("Scanning: %ls\n", filenameDir);
-
-
     // Find first file.
     WIN32_FIND_DATAW fd;
-
     HANDLE handle = FindFirstFile(filenameDir, &fd);
 
     if (handle == INVALID_HANDLE_VALUE)
@@ -639,9 +603,8 @@ void ScanDirectory(const _TCHAR *filename)
         // Add the first file?
         AddFile(fd, filenameParent);
 
-
         // Add next
-        BOOL result = false;
+        BOOL result = FALSE;
         do
         {
             result = FindNextFile(handle, &fd);
@@ -658,8 +621,9 @@ void ScanDirectory(const _TCHAR *filename)
 }
 
 
+// ------------------------------------------------------------------------
 // Checks for a file we can use.
-//
+// ------------------------------------------------------------------------
 void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory)
 {
     static const DWORD flags[] =
@@ -694,7 +658,6 @@ void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory)
         return;
     }
 
-
     // Any unsuitable attributes?
     for (int i=0; i<ARRAY_SIZE(flags); i++)
     {
@@ -705,13 +668,11 @@ void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory)
         }
     }
 
-
     // File empty?
     if (fd.nFileSizeLow == 0 && fd.nFileSizeHigh == 0)
     {
         return;
     }
-
 
     // File too large.
     if (fd.nFileSizeHigh != 0)
@@ -719,8 +680,6 @@ void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory)
         printf("Files larger than %lu bytes are not supported: %ls\n", 0xffffffff, fd.cFileName);
         return;
     }
-
-
 
     // Create the complete path
     {
@@ -736,8 +695,9 @@ void AddFile(WIN32_FIND_DATAW &fd, const _TCHAR *parentDirectory)
 }
 
 
+// ------------------------------------------------------------------------
 // Displays the last windows error message.
-//
+// ------------------------------------------------------------------------
 void DebugShowLastError()
 {
     DWORD dw = GetLastError(); 
@@ -787,8 +747,9 @@ u32 StringHash(const char* string)
 }
 
 
+// ------------------------------------------------------------------------
 // Creates an archive entry.
-//
+// ------------------------------------------------------------------------
 void CreateEntry(WIN32_FIND_DATAW &fd, const _TCHAR *filename)
 {
     try
@@ -823,13 +784,13 @@ void CreateEntry(WIN32_FIND_DATAW &fd, const _TCHAR *filename)
 }
 
 
+// ------------------------------------------------------------------------
 // Create the fat
-//
+// ------------------------------------------------------------------------
 bool WriteArchive()
 {
     // Create the header
     FatHeader   header;
-
     header.magic1   = MAGIC1;
     header.magic2   = MAGIC2;
     header.size     = sizeof(FatHeader) + (sizeof(ArcEntry) * filesToAdd.size());
@@ -838,11 +799,9 @@ bool WriteArchive()
 
     // Open the files
     FILE *fp_fat = NULL;  
-    FILE *fp_arc = NULL;  
-    
+    FILE *fp_arc = NULL;      
     _tfopen_s(&fp_fat, outputFilename_Fat, L"wb");
-    _tfopen_s(&fp_arc, outputFilename_Arc, L"wb");
-  
+    _tfopen_s(&fp_arc, outputFilename_Arc, L"wb");  
     if (fp_fat && fp_arc)
     {
         // Write the FAT header.
@@ -859,7 +818,6 @@ bool WriteArchive()
 
         std::list<ArcEntry>::iterator it  = filesToAdd.begin();
         std::list<ArcEntry>::iterator end = filesToAdd.end();
-
         for(;it != end; ++it)
         {
             ArcEntry entry;
@@ -877,10 +835,8 @@ bool WriteArchive()
                 _strlwr_s(temp, MAX_PATH);
             }
 
-
             // Ensure same slashes.
             StringReplaceChar(temp, '\\', '/');
-
 
             // Create entry
             sprintf_s(entry.filename, MAX_PATH, "%s", (*it).filename);
@@ -899,7 +855,6 @@ bool WriteArchive()
         // Sort for faster searching.
         entries.sort();
 
-
         if (verbose)
         {
             printf("-------------------------------------------------------------------------------\n");
@@ -908,12 +863,10 @@ bool WriteArchive()
             printf("-------------------------------------------------------------------------------\n");
         }
 
-
         // Write the data.
         {
             u32 offset   = 0;
             u32 filesize = 0;
-
 
             std::list<ArcEntry>::iterator it1  = entries.begin();
             std::list<ArcEntry>::iterator end1 = entries.end();
@@ -1056,8 +1009,6 @@ bool WriteArchive()
 
                         if (verbose)
                         {
-                           //printf("    Offset Compressed     Actual\n");
-                           //printf("in archive       size   Filesize : File\n");
                            printf("%*i %*i %*i %*x : %s\n", 10, entry.offset,
                                                             10, entry.compressedSize,
                                                             10, entry.filesize,
@@ -1095,8 +1046,9 @@ Error:
 }
 
 
+// ------------------------------------------------------------------------
 // Compress file data.
-//
+// ------------------------------------------------------------------------
 int CompressData(const Bytef *data, uLong dataSize, uLong &dataOutSize, u8 **dataOut)
 {
     if (dataOut == NULL)
@@ -1106,18 +1058,15 @@ int CompressData(const Bytef *data, uLong dataSize, uLong &dataOutSize, u8 **dat
     dataOutSize = compressBound(dataSize);
     *dataOut    = (u8*)malloc(dataOutSize);
 
-
     // Alloc succeeded?
     if (!*dataOut)
     {
         return COMPRESS_FAILED;
     }
 
-
     // Compress
     memset(*dataOut, 0, dataOutSize);
     int err = compress(*dataOut, &dataOutSize, data, dataSize);
-
     if (err == Z_OK)
     {
         if (dataOutSize >= dataSize)
@@ -1152,8 +1101,10 @@ int CompressData(const Bytef *data, uLong dataSize, uLong &dataOutSize, u8 **dat
 }
 
 
-// Changes every occurrence of the search character with the replace character.
-//
+// ------------------------------------------------------------------------
+// Changes every occurrence of the search character with the replacement
+// character.
+// ------------------------------------------------------------------------
 void StringReplaceChar(char *string, char search, char replace)
 {
     if (string && *string)
