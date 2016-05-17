@@ -9,7 +9,6 @@
 *.user
 *.ipch
 *.suo
-*.filters
 *.lastbuildstate
 *.idb
 *.pdb
